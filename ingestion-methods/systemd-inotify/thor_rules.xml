@@ -1,0 +1,106 @@
+<!-- ==============================================================================
+     THOR – rules for Alerts, Warnings, Notices - JSON‐decoded logs (v1, v2, v3)
+     Tested with Wazuh 4.12.0
+     Created: June 12, 2025
+     Updated: June 20, 2025
+     Maintainer: Ion Cicala ion.cicala@nextron-systems.com
+=============================================================================== -->
+<group name="thor,findings,">
+
+  <!--=================================================================-->
+  <!-- Version-specific base rules (no alerts) -->
+  <!--=================================================================-->
+
+  <rule id="110000" level="0" noalert="1">
+    <decoded_as>thor-json-v1</decoded_as>
+    <description>THOR v1 format log</description>
+    <options>no_full_log</options>
+  </rule>
+
+  <rule id="120000" level="0" noalert="1">
+    <decoded_as>thor-json-v2</decoded_as>
+    <description>THOR v2 format log</description>
+    <options>no_full_log</options>
+  </rule>
+
+  <rule id="130000" level="0" noalert="1">
+    <decoded_as>thor-json-v3</decoded_as>
+    <description>THOR v3 format log</description>
+    <options>no_full_log</options>
+  </rule>
+
+  <!--=================================================================-->
+  <!-- V1 log version  (children of 100100) -->
+  <!--=================================================================-->
+
+  <rule id="110001" level="12">
+    <if_sid>110000</if_sid>
+    <field name="level" type="pcre2">(?i)^Alert$</field>
+    <description>THOR Alert – [$(module)] $(message)</description>
+    <group>alert,</group>
+  </rule>
+
+  <rule id="110002" level="8">
+    <if_sid>110000</if_sid>
+    <field name="level" type="pcre2">(?i)^Warning$</field>
+    <description>THOR Warning – [$(module)] $(message)</description>
+    <group>warning,</group>
+  </rule>
+
+  <rule id="110003" level="4">
+    <if_sid>110000</if_sid>
+    <field name="level" type="pcre2">(?i)^Notice$</field>
+    <description>THOR Notice – [$(module)] $(message)</description>
+    <group>notice,</group>
+  </rule>
+  <!--=================================================================-->
+  <!-- V2 log version (children of 120000) -->
+  <!--=================================================================-->
+
+  <rule id="120001" level="12">
+    <if_sid>120000</if_sid>
+    <field name="level" type="pcre2">(?i)^Alert$</field>
+    <description>THOR Alert – [$(module)] $(message)</description>
+    <group>alert,</group>
+  </rule>
+
+  <rule id="120002" level="8">
+    <if_sid>120000</if_sid>
+    <field name="level" type="pcre2">(?i)^Warning$</field>
+    <description>THOR Warning – [$(module)] $(message)</description>
+    <group>warning,</group>
+  </rule>
+
+  <rule id="120003" level="4">
+    <if_sid>120000</if_sid>
+    <field name="level" type="pcre2">(?i)^Notice$</field>
+    <description>THOR Notice – [$(module)] $(message)</description>
+    <group>notice,</group>
+  </rule>
+
+  <!--=================================================================-->
+  <!-- V3 log version (children of 130000) -->
+  <!--=================================================================-->
+
+  <rule id="130001" level="12">
+    <if_sid>130000</if_sid>
+    <field name="meta.level" type="pcre2">(?i)^Alert$</field>
+    <description>THOR Alert – [$(meta.module)] $(summary)</description>
+    <group>alert,</group>
+  </rule>
+
+  <rule id="130002" level="8">
+    <if_sid>130000</if_sid>
+    <field name="meta.level" type="pcre2">(?i)^Warning$</field>
+    <description>THOR Warning – [$(meta.module)] $(summary)</description>
+    <group>warning,</group>
+  </rule>
+
+  <rule id="130003" level="4">
+    <if_sid>130000</if_sid>
+    <field name="meta.level" type="pcre2">(?i)^Notice$</field>
+    <description>THOR Notice – [$(meta.module)] $(summary)</description>
+    <group>notice,</group>
+  </rule>
+</group>
+

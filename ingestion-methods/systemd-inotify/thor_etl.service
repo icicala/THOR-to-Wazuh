@@ -1,0 +1,14 @@
+[Unit]
+Description=THOR ETL Log Processor
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -u /usr/local/bin/thor_etl.py
+User=wazuh
+Group=wazuh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

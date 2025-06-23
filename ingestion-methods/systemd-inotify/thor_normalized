@@ -1,0 +1,11 @@
+/var/ossec/logs/thor_json_reports/monitored_zone/thor_normalized.json {
+    size 3G
+    rotate 1
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+    create 0640 wazuh wazuh
+    sharedscripts
+}
