@@ -2,6 +2,7 @@
 
 **Stream and normalize **THOR** scan findings into Wazuh SIEM for real-time alerting and threat hunting.  
 This integration ensures that advanced forensic, malware, and compromise indicators detected by **THOR** are immediately available for security operations and correlation in Wazuh.**
+
 ---
 
 ## Prerequisites
@@ -174,7 +175,7 @@ Add the following section to your `/var/ossec/etc/ossec.conf` file inside the `<
 </localfile>
 ```
 
-### 2.4 Apply Changes
+### 2.4 Restart Wazuh service
 Restart Wazuh to load the new configuration and begin processing THOR findings.
 
 ```bash
