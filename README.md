@@ -53,7 +53,6 @@ Configures Wazuh Manager to accept normalized THOR JSON events via TCP from the 
   <protocol>tcp</protocol>
   <port>514</port>
   <queue_size>131072</queue_size>
-  <keep_alive>yes</keep_alive>
   <allowed-ips>127.0.0.1</allowed-ips>
 </remote>
 ```
@@ -77,7 +76,7 @@ systemctl restart wazuh-manager.service
 
 
 ### 1.2 Install ETL Script
-The python script `thor_findings_etl.py` watches for incoming THOR reports in drop_zone, flattens arrays of objects, and writes normalized output to `thor_normalized.json`.
+The python script `thor_offline_etl.py` watches for incoming THOR reports in drop_zone, flattens arrays of objects, and writes normalized output to `thor_normalized.json`.
 
 ```bash
 # Install ETL script with correct permissions
