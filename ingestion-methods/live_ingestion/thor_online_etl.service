@@ -1,0 +1,18 @@
+[Unit]
+Description=THOR JSON ETL Service - to Wazuh
+After=network.target
+
+[Service]
+Type=simple
+PermissionsStartOnly=yes
+ExecStartPre=/usr/bin/touch /var/log/thor_json_etl.log
+ExecStartPre=/usr/bin/chown wazuh:wazuh /var/log/thor_json_etl.log
+ExecStartPre=/usr/bin/chmod 640 /var/log/thor_json_etl.log
+User=wazuh
+Group=wazuh
+ExecStart=/opt/thor-json-etl/thor_online_etl.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

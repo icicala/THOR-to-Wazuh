@@ -1,42 +1,46 @@
 <!-- =======================================================================
      THOR JSON – parent + version-specific + default decoder
      Tested with Wazuh 4.12.0
-     Created: June 12, 2025
-     Last updated: June 20, 2025
+     Created: July 24, 2025
+     Last updated: July 29, 2025
      Maintainer: Ion Cicala ion.cicala@nextron-systems.com
 ========================================================================= -->
 
+<decoder name="thor-json">
+  <program_name>^THOR$</program_name>
+</decoder>
+
 <decoder name="thor-json-v1">
-  <parent>json</parent>
+  <parent>thor-json</parent>
   <prematch type="pcre2">(?i)"log_version":"v1\.\d+\.\d+"</prematch>
-  <plugin_decoder offset="after_prematch">JSON_Decoder</plugin_decoder>
+  <plugin_decoder offset="after_parent">JSON_Decoder</plugin_decoder>
   <json_array_structure>array</json_array_structure>
   <json_null_field>discard</json_null_field>
   <use_own_name>true</use_own_name>
 </decoder>
 
 <decoder name="thor-json-v2">
-  <parent>json</parent>
+  <parent>thor-json</parent>
   <prematch type="pcre2">(?i)"log_version":"v2\.\d+\.\d+"</prematch>
-  <plugin_decoder>JSON_Decoder</plugin_decoder>
+  <plugin_decoder offset="after_parent">JSON_Decoder</plugin_decoder>
   <json_array_structure>array</json_array_structure>
   <json_null_field>discard</json_null_field>
   <use_own_name>true</use_own_name>
 </decoder>
 
 <decoder name="thor-json-v3">
-  <parent>json</parent>
+  <parent>thor-json</parent>
   <prematch type="pcre2">(?i)"log_version":"v3\.\d+\.\d+"</prematch>
-  <plugin_decoder>JSON_Decoder</plugin_decoder>
+  <plugin_decoder offset="after_parent">JSON_Decoder</plugin_decoder>
   <json_array_structure>array</json_array_structure>
   <json_null_field>discard</json_null_field>
   <use_own_name>true</use_own_name>
 </decoder>
 
 <decoder name="thor-json-default">
-  <parent>json</parent>
+  <parent>thor-json</parent>
   <prematch type="pcre2">(?i)"log_version":"v(\d+\.\d+\.\d+)"</prematch>
-  <plugin_decoder>JSON_Decoder</plugin_decoder>
+  <plugin_decoder offset="after_parent">JSON_Decoder</plugin_decoder>
   <json_array_structure>array</json_array_structure>
   <json_null_field>discard</json_null_field>
   <use_own_name>true</use_own_name>

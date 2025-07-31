@@ -1,79 +1,121 @@
-# THOR → Wazuh
+# THOR APT Scanner → Wazuh
 
-**Stream and normalize **THOR** scan findings into Wazuh SIEM for real-time alerting and threat hunting.  
-This integration ensures that advanced forensic, malware, and compromise indicators detected by **THOR** are immediately available for security operations and correlation in Wazuh.**
+> Stream and normalize THOR scan findings—whether ingested live over TCP or imported from JSON reports - directly into Wazuh for real‑time alerting, threat hunting, and in‑depth incident analysis. This integration ensures that advanced forensic, malware, and indicators of compromise detected by THOR are immediately available for security operations and correlation within Wazuh.
 
 ---
 
 ## Prerequisites
-| Requirement                                                                                                                                                                                                                                                                                                                                                                                                     | Value                        |
-|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------|
-| [**Wazuh Manager**](https://wazuh.com/)                                                                                                                                                                                                                                                                                                                                                                         | 4.x (tested 4.12)            |
-| [**THOR reports**](https://www.nextron-systems.com/thor/?utm_source=google&utm_medium=cpc&utm_campaign=THOR_APT_Seatch&utm_term=thor%20apt%20scanner&utm_content=Ad1&gad_source=1&gad_campaignid=22495394156&gbraid=0AAAAACRM45lMXyBI7ImsOMlmET2DggnFo&gclid=CjwKCAjw9uPCBhATEiwABHN9K-yTSLWjpnhuihcebIx7-A8N75UKHQH0OC8G_DB_Iz7rd_OSTAAcJhoCQiAQAvD_BwE)                                                       | JSON formats v1.x.x – v3.x.x |
-| [**Python**](https://www.python.org/downloads/release/python-390/)                                                                                                                                                                                                                                                                                                                                              | 3.9 or newer                 |
 
-> NOTE: **JSON Array Limitation:** According to [Wazuh documentation](https://documentation.wazuh.com/current/user-manual/ruleset/decoders/json-decoder.html), Wazuh decoder can not parse arrays of objects. The ETL script flattens these arrays while preserving all other data types.
+| Requirement                                                   | Version / Notes              |
+| ------------------------------------------------------------- | ---------------------------- |
+| [**Wazuh Manager**](https://wazuh.com/)                       | 4.x (tested 4.12)            |
+| [**THOR APT Scanner**](https://www.nextron-systems.com/thor/) | JSON formats v1.x.x – v3.x.x |
+| [**Python**](https://www.python.org/)                         | 3.9 or newer                 |
+
+> **Note:** Wazuh’s JSON decoder cannot parse [arrays of objects](https://documentation.wazuh.com/current/user-manual/ruleset/decoders/json-decoder.html#json-decoder). The ETL scripts flatten these arrays while preserving all other data fields.
 
 ---
-## 1 Method A – Event-Driven (systemd + inotify)
-### How It Works
+![THOR Findings Ingestion Methods into Wazuh](ingestion-methods/images/Log%20data%20collection%20and%20analysis%20in%20Wazuh.jpg)
 
+## 1. Method A – Live Streaming Ingestion
+
+### 2.1 How It Works
+
+![Live Streaming Ingestion.png](ingestion-methods/images/Live%20Streaming%20Ingestion.png)
+
+### 2.2 Install ETL Service
+
+Installs the `thor_online_etl.py` script and registers it as a system service, ensuring it restart on failure and starts automatically on boot.
+
+```bash
+install -o wazuh -g wazuh -m 750 thor_online_etl.py /opt/thor-json-etl/
+cp thor-online-etl.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable thor-online-etl
 ```
-THOR report → drop_zone/*.json
-            ↓ inotify kernel event triggers
-      thor_etl.py processes the file:
-            ├── normalizes and flattens arrays of objects
-            ├── appends to monitored_zone/thor_normalized.json
-            └── archives original to archive/YYYY-MM-DD/
-                     ↓
-      Wazuh logcollector ingests thor_normalized.json
-                     ↓
-      Wazuh decoders parse the JSON
-                     ↓
-      Wazuh rules process and trigger alerts
-                     ↓
-      Wazuh dashboard displays findings
+
+### 2.3 Load Decoders & Rules
+
+Provides Wazuh with necessary decoders and rules for parsing, classifying, and alerting on incoming THOR log events.
+
+```bash
+cp thor_decoders.xml /var/ossec/etc/decoders/
+cp thor_rules.xml    /var/ossec/etc/rules/
 ```
-### 1.1 Install ETL Script
-The python script `thor_findings_etl.py` watches for incoming THOR reports in `drop_zone`, flattens arrays of objects, and writes normalized output to `thor_normalized.json`.
+
+### 2.4 Wazuh Syslog Remote Configuration
+Since the Wazuh Syslog colelctor is [disabled by default](https://documentation.wazuh.com/current/getting-started/architecture.html#required-ports), this configuration enables Wazuh to accept incoming THOR JSON events over TCP. The ETL script will send normalized logs to Wazuh on port 514.
+Configures Wazuh Manager to accept normalized THOR JSON events via TCP from the ETL script. Add the following stanza to your `/var/ossec/etc/ossec.conf` file inside `<ossec_config>`:
+
+```xml
+<remote>
+  <connection>syslog</connection>
+  <protocol>tcp</protocol>
+  <port>514</port>
+  <queue_size>131072</queue_size>
+  <keep_alive>yes</keep_alive>
+  <allowed-ips>127.0.0.1</allowed-ips>
+</remote>
+```
+
+### 2.5 Start Services
+
+Starts the ETL service for continuous processing and restarts Wazuh to apply new configurations and load rules.
+
+```bash
+systemctl start thor-online-etl.service
+systemctl restart wazuh-manager.service
+```
+
+---
+
+## 2. Method B – Offline Report Ingestion
+
+### 1.1 How It Works
+
+![Offline Report Ingestion.png](ingestion-methods/images/Offline%20Report%20Ingestion.png)
+
+
+### 1.2 Install ETL Script
+The python script `thor_findings_etl.py` watches for incoming THOR reports in drop_zone, flattens arrays of objects, and writes normalized output to `thor_normalized.json`.
 
 ```bash
 # Install ETL script with correct permissions
-install -o wazuh -g wazuh -m 750 thor_findings_etl.py /usr/local/bin/thor_findings_etl.py
+install -o wazuh -g wazuh -m 750 thor_offline_etl.py /opt/thor-json-etl/
 ```
-####  Directory Structure
 
-```
+### 1.3 Directory Structure
+
+```textmate
 /var/ossec/logs/thor_json_reports/
-├── drop_zone/         # Place incoming THOR JSON reports here (watched by ETL script)
-├── monitored_zone/    # ETL writes normalized logs here for Wazuh ingestion
+├── drop_zone/            # Place THOR JSON reports here (watched by ETL script)
+├── monitored_zone/       # ETL writes normalized thor findings here for Wazuh ingestion
 │   └── thor_normalized.json
-└── archive/           # ETL script archives original reports by date
+└── archive/              # ETL script archives original reports by date
     └── YYYY-MM-DD/
 ```
 
-### 1.2 Register systemd unit
-Registers the ETL script as a system service, enabling it to run automatically in the background and start on boot.
+### 1.4 Register systemd Unit
+Registers the ETL script as a system service, enabling it to run automatically and start on boot.
 ```bash
 # Copy service definition
-cp thor_etl.service /etc/systemd/system/
-
+cp thor_offline_etl.service /etc/systemd/system/
 # Reload systemd and enable service (starts on boot)
 systemctl daemon-reload
-systemctl enable thor_etl
+systemctl enable thor_offline_etl.service
 ```
 
-### 1.3 Load decoders & rules
+### 1.5 Load Decoders & Rules
 Provides Wazuh with custom decoders and rules for parsing, classifying, and alerting on normalized THOR log entries.
 ```bash
 # Copy decoders and rules
 cp thor_decoders.xml /var/ossec/etc/decoders/
-cp thor_rules.xml /var/ossec/etc/rules/
+cp thor_rules.xml    /var/ossec/etc/rules/
 ```
 
-### 1.4 Wazuh stanza Configuration
-Tells Wazuh logcollector to monitor the normalized THOR log file for new events to decode, index, and display in the dashboard.
-Add the following section to your `/var/ossec/etc/ossec.conf` file inside the `<ossec_config>` section:
+### 1.6 Wazuh ossec.conf Stanza
+
+Tells Wazuh logcollector to monitor the new normalized THOR events to decode, index, and display in the dashboard. Add the following section to your `/var/ossec/etc/ossec.conf` file inside the `<ossec_config>` section:
 
 ```xml
 <localfile>
@@ -82,14 +124,14 @@ Add the following section to your `/var/ossec/etc/ossec.conf` file inside the `<
 </localfile>
 ```
 
-### 1.5 Configure Log Rotation
-Adds a logrotate policy to prevent `thor_normalized.json` from growing too large, compressing and rotating the file at 3GB.
+### 1.7 Log Rotation
+Add a logrotate policy to prevent thor_normalized.json from growing too large, compressing and rotating the file at 3GB.
 ```bash
 # Copy logrotate configuration
 cp thor_normalized_logrotate /etc/logrotate.d/thor_normalized
 ```
 
-**Example `logrotate` entry:**
+Example `/etc/logrotate.d/thor_normalized`:
 
 ```conf
 /var/ossec/logs/thor_json_reports/monitored_zone/thor_normalized.json {
@@ -105,80 +147,9 @@ cp thor_normalized_logrotate /etc/logrotate.d/thor_normalized
 }
 ```
 
-### 1.6 Start Services
+### 1.8 Start Services
 Starts the ETL service for continuous processing and restarts Wazuh to load new rules and configuration.
 ```bash
-systemctl start thor_etl
-systemctl restart wazuh-manager
+systemctl start thor_offline_etl.service
+systemctl restart wazuh-manager.service
 ```
-
----
-
-## 2. **Method B – Frequncy Command Execution (localfile + command)**
-
-This alternative method uses Wazuh's built-in command execution capability to periodically run the ETL script, eliminating the need for a separate systemd service.
-
-### How It Works
-
-```
-THOR report → drop_zone/*.json
-            ↓ every 10 seconds
-      Wazuh executes thor_findings_etl.py
-            ↓
-      Script processes drop_zone files:
-            ├── normalizes and flattens arrays of objects
-            ├── outputs findings directly to stdout (captured by Wazuh)
-            └── archives original to archive/YYYY-MM-DD/
-                     ↓
-      Wazuh decoders parse the output
-                     ↓
-      Wazuh processes and triggers alerts
-                     ↓
-      Wazuh dashboard displays thor findings
-```
-
-### 2.1 Install ETL Script
-The command-mode Python script processes THOR reports from the `drop_zone` folder and outputs them directly to `stdout` for Wazuh logcollector.
-
-```bash
-# Install ETL script with correct permissions
-install -o wazuh -g wazuh -m 750 thor_findings_etl.py /usr/local/bin/thor_findings_etl.py
-```
-
-#### Directory Structure
-```
-/var/ossec/logs/thor_json_reports/
-├── drop_zone/         # Place incoming THOR JSON reports here
-└── archive/           # ETL script archives processed reports by date
-    └── YYYY-MM-DD/
-```
-
-
-### 2.2 Load decoders & rules
-Enables Wazuh to understand, decode, and classify THOR findings.
-
-```bash
-# Copy decoders and rules
-cp thor_decoders.xml /var/ossec/etc/decoders/
-cp thor_rules.xml /var/ossec/etc/rules/
-```
-
-### 2.3 Wazuh stanza Configuration
-Configure Wazuh to periodically execute the ETL script and process THOR JSON format reports.
-Add the following section to your `/var/ossec/etc/ossec.conf` file inside the `<ossec_config>` section:
-
-```xml
-<localfile>
-  <log_format>command</log_format>
-  <command>/usr/local/bin/thor_findings_etl.py</command>
-  <frequency>10</frequency>
-</localfile>
-```
-
-### 2.4 Restart Wazuh service
-Restart Wazuh to load the new configuration and begin processing THOR findings.
-
-```bash
-systemctl restart wazuh-manager
-```
----
